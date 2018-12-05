@@ -6,10 +6,69 @@ import random
 import cv2
 import numpy as np
 import torch
+from torchvision.transforms import transforms
 
+from utils import augmentation
 from utils.utils import xyxy2xywh
 
+from PIL import Image
 
+from torch.utils.data import dataset as ds
+
+
+class AnnotatedDataset(ds.Dataset):
+    """
+    Dataset for images with annotations
+    """
+
+    def __init__(self, images, annotations, root_dir=None, transform=None):
+        assert len(images) == len(annotations)
+        self.data = [
+            dict(image=i, objects=o)
+            for i, o in zip(images, annotations)
+        ]
+        data = [d for d in self.data if os.path.exists(d['objects'])]
+        self.data = data
+        self.root_dir = root_dir
+        self.transform = transform
+
+    def __getitem__(self, index):
+        sample = self.data[index]
+
+        image_f, annot_f = sample['image'], sample['objects']
+
+        if self.root_dir:
+            image_f = os.path.join(self.root_dir, image_f)
+            annot_f = os.path.join(self.root_dir, annot_f)
+
+        im = Image.open(image_f, mode='r')
+
+        # Read annotations
+        try:
+            annotations = np.loadtxt(annot_f, dtype=np.float32).reshape(-1, 5)
+        except FileNotFoundError:
+            annotations = []
+
+        sample = dict(
+            image=im,
+            objects=annotations,
+        )
+
+        if self.transform:
+            sample = self.transform(sample)
+
+        return sample
+
+    def __len__(self):
+        return len(self.data)
+
+
+# transform_train = transforms.Compose([
+#     transforms.RandomCrop(32, padding=4),
+#     transforms.RandomHorizontalFlip(),
+#     transforms.ToTensor(),
+#     transforms.Normalize(rgb_mean, rgb_std),
+# ])
 class load_images():  # for inference
     def __init__(self, path, batch_size=1, img_size=416):
         if os.path.isdir(path):
@@ -42,7 +101,11 @@ class load_images():  # for inference
         img = cv2.imread(img_path)  # BGR
 
         # Padded resize
-        img, _, _, _ = resize_square(img, height=self.height, color=(127.5, 127.5, 127.5))
+        img, _, _, _ = augmentation.resize_square(
+            img,
+            height=self.height,
+            color=(127.5, 127.5, 127.5),
+        )
 
         # Normalize RGB
         img = img[:, :, ::-1].transpose(2, 0, 1)

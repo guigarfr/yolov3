@@ -6,7 +6,10 @@ from utils.datasets import *
 from utils.utils import *
 
 from utils import parsers
+from utils import datasets
+from utils import dataloader
 from utils import torch_utils
+from utils import transforms as transf
 
 # Import test.py to get mAP after each epoch
 import test
@@ -48,8 +51,29 @@ def train(
     if multi_scale:  # pass maximum multi_scale size
         img_size = 608
 
-    dataloader = load_images_and_labels(data.train_file, batch_size=batch_size, img_size=img_size,
-                                        multi_scale=multi_scale, augment=True)
+    transform_data = transforms.Compose([
+        transf.ToRGB(),
+        transf.PadToSquare(),
+        transf.Rescale(img_size),
+        transf.ToTensor(),
+    ])
+
+    dataset = datasets.AnnotatedDataset(
+        data.train_images,
+        data.train_annotations,
+        transform=transform_data,
+    )
+
+    data_loader = dataloader.YoloDataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    # Transfer learning (train only YOLO layers)
+    for i, (name, p) in enumerate(model.named_parameters()):
+        if p.shape[0] != (3*(data.classes + 5)):  # not YOLO layer
+            p.requires_grad = False
 
     lr0 = 0.001
     if resume:
@@ -61,11 +85,6 @@ def train(
             # print('Using ', torch.cuda.device_count(), ' GPUs')
             # model = nn.DataParallel(model)
         model.to(device).train()
-
-        # # Transfer learning (train only YOLO layers)
-        # for i, (name, p) in enumerate(model.named_parameters()):
-        #     if p.shape[0] != 650:  # not YOLO layer
-        #         p.requires_grad = False
 
         # Set optimizer
         optimizer = torch.optim.SGD(filter(lambda p: p.requires_grad, model.parameters()), lr=lr0, momentum=.9)
@@ -137,7 +156,9 @@ def train(
         rloss = defaultdict(float)  # running loss
         metrics = torch.zeros(3, data.classes)
         optimizer.zero_grad()
-        for i, (imgs, targets) in enumerate(dataloader):
+        for i, sample in enumerate(data_loader):
+            imgs = sample['image']
+            targets = sample['objects']
             if sum([len(x) for x in targets]) < 1:  # if no targets continue
                 continue
 

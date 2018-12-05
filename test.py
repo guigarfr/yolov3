@@ -5,7 +5,11 @@ from utils.datasets import *
 from utils.utils import *
 
 from utils import parsers
+from utils import datasets
+from utils import dataloader
 from utils import torch_utils
+
+from utils import transforms as transf
 
 
 def test(
@@ -24,8 +28,27 @@ def test(
 
     data = parsers.DatasetParser(data_config_path)
 
-    # Initiate model
+    # Initialize model
     model = Darknet(net_config_path, img_size)
+
+    transform_data = transforms.Compose([
+        transf.ToRGB(),
+        transf.PadToSquare(),
+        transf.Rescale(img_size),
+        transf.ToTensor(),
+    ])
+
+    dataset = datasets.AnnotatedDataset(
+        data.validation_images,
+        data.validation_annotations,
+        transform=transform_data,
+    )
+
+    data_loader = dataloader.YoloDataLoader(
+        dataset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
 
     # Load weights
     if weights_file_path.endswith('.pt'):  # pytorch format
@@ -37,15 +60,13 @@ def test(
 
     model.to(device).eval()
 
-    # Get dataloader
-    # dataset = load_images_with_labels(test_path)
-    # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=n_cpus)
-    dataloader = load_images_and_labels(data.validation_file, batch_size=batch_size, img_size=img_size)
-
     print('%11s' * 5 % ('Image', 'Total', 'P', 'R', 'mAP'))
     outputs, mAPs, mR, mP, TP, confidence, pred_class, target_class = [], [], [], [], [], [], [], []
     AP_accum, AP_accum_count = np.zeros(data.classes), np.zeros(data.classes)
-    for batch_i, (imgs, targets) in enumerate(dataloader):
+    for i, sample in enumerate(data_loader):
+
+        imgs = sample['image']
+        targets = sample['objects']
 
         with torch.no_grad():
             output = model(imgs.to(device))

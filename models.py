@@ -2,8 +2,8 @@ from collections import defaultdict
 
 import torch.nn as nn
 
-from utils.parse_config import *
 from utils.utils import *
+from utils import parsers
 
 
 def create_modules(module_defs):
@@ -232,8 +232,7 @@ class Darknet(nn.Module):
 
     def __init__(self, cfg_path, img_size=416):
         super(Darknet, self).__init__()
-
-        self.module_defs = parse_model_config(cfg_path)
+        self.module_defs = parsers.parse_model_config(cfg_path)
         self.module_defs[0]['height'] = img_size
         self.hyperparams, self.module_list = create_modules(self.module_defs)
         self.img_size = img_size
