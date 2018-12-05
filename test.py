@@ -4,6 +4,7 @@ from models import *
 from utils.datasets import *
 from utils.utils import *
 
+from utils import parsers
 from utils import torch_utils
 
 
@@ -21,10 +22,7 @@ def test(
     device = torch_utils.select_device()
     print("Using device: \"{}\"".format(device))
 
-    # Configure run
-    data_config = parse_data_config(data_config_path)
-    nC = int(data_config['classes'])  # number of classes (80 for COCO)
-    test_path = data_config['valid']
+    data = parsers.DatasetParser(data_config_path)
 
     # Initiate model
     model = Darknet(net_config_path, img_size)
@@ -42,11 +40,11 @@ def test(
     # Get dataloader
     # dataset = load_images_with_labels(test_path)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=n_cpus)
-    dataloader = load_images_and_labels(test_path, batch_size=batch_size, img_size=img_size)
+    dataloader = load_images_and_labels(data.validation_file, batch_size=batch_size, img_size=img_size)
 
     print('%11s' * 5 % ('Image', 'Total', 'P', 'R', 'mAP'))
     outputs, mAPs, mR, mP, TP, confidence, pred_class, target_class = [], [], [], [], [], [], [], []
-    AP_accum, AP_accum_count = np.zeros(nC), np.zeros(nC)
+    AP_accum, AP_accum_count = np.zeros(data.classes), np.zeros(data.classes)
     for batch_i, (imgs, targets) in enumerate(dataloader):
 
         with torch.no_grad():
@@ -98,8 +96,8 @@ def test(
                                               target_cls=target_cls)
 
             # Accumulate AP per class
-            AP_accum_count += np.bincount(AP_class, minlength=nC)
-            AP_accum += np.bincount(AP_class, minlength=nC, weights=AP)
+            AP_accum_count += np.bincount(AP_class, minlength=data.classes)
+            AP_accum += np.bincount(AP_class, minlength=data.classes, weights=AP)
 
             # Compute mean AP across all classes in this image, and append to image list
             mAPs.append(AP.mean())
@@ -117,8 +115,7 @@ def test(
     # Print mAP per class
     print('%11s' * 5 % ('Image', 'Total', 'P', 'R', 'mAP') + '\n\nmAP Per Class:')
 
-    classes = load_classes(data_config['names'])  # Extracts class labels from file
-    for i, c in enumerate(classes):
+    for i, c in enumerate(data.labels):
         print('%15s: %-.4f' % (c, AP_accum[i] / AP_accum_count[i]))
 
     # Return mAP

@@ -2,13 +2,11 @@ import glob
 import math
 import os
 import random
-from sys import platform
 
 import cv2
 import numpy as np
 import torch
 
-# from torch.utils.data import Dataset
 from utils.utils import xyxy2xywh
 
 

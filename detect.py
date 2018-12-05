@@ -5,6 +5,7 @@ from models import *
 from utils.datasets import *
 from utils.utils import *
 
+from utils import parsers
 from utils import torch_utils
 
 
@@ -27,7 +28,7 @@ def detect(
     os.system('rm -rf ' + output)
     os.makedirs(output, exist_ok=True)
 
-    data_config = parse_data_config(data_config_path)
+    data = parsers.DatasetParser(data_config_path)
 
     # Load model
     model = Darknet(net_config_path, img_size)
@@ -55,7 +56,6 @@ def detect(
     model.to(device).eval()
 
     # Set Dataloader
-    classes = load_classes(data_config['names'])  # Extracts class labels from file
     dataloader = load_images(images_path, batch_size=batch_size, img_size=img_size)
 
     imgs = []  # Stores image paths
@@ -110,7 +110,7 @@ def detect(
 
             for i in unique_classes:
                 n = (detections[:, -1].cpu() == i).sum()
-                print('%g %ss' % (n, classes[int(i)]))
+                print('%g %ss' % (n, data.labels[int(i)]))
 
             for x1, y1, x2, y2, conf, cls_conf, cls_pred in detections:
                 # Rescale coordinates to original dimensions
@@ -129,7 +129,7 @@ def detect(
 
                 if save_images:
                     # Add the bbox to the plot
-                    label = '%s %.2f' % (classes[int(cls_pred)], conf)
+                    label = '%s %.2f' % (data.labels[int(cls_pred)], conf)
                     color = bbox_colors[int(np.where(unique_classes == int(cls_pred))[0])]
                     plot_one_box([x1, y1, x2, y2], img, label=label, color=color)
 

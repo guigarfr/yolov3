@@ -5,6 +5,7 @@ from models import *
 from utils.datasets import *
 from utils.utils import *
 
+from utils import parsers
 from utils import torch_utils
 
 # Import test.py to get mAP after each epoch
@@ -38,10 +39,7 @@ def train(
     latest_weights_file = os.path.join(weights_path, 'latest.pt')
     best_weights_file = os.path.join(weights_path, 'best.pt')
 
-    # Configure run
-    data_config = parse_data_config(data_config_path)
-    num_classes = int(data_config['classes'])
-    train_path = data_config['train']
+    data = parsers.DatasetParser(data_config_path)
 
     # Initialize model
     model = Darknet(net_config_path, img_size)
@@ -50,7 +48,7 @@ def train(
     if multi_scale:  # pass maximum multi_scale size
         img_size = 608
 
-    dataloader = load_images_and_labels(train_path, batch_size=batch_size, img_size=img_size,
+    dataloader = load_images_and_labels(data.train_file, batch_size=batch_size, img_size=img_size,
                                         multi_scale=multi_scale, augment=True)
 
     lr0 = 0.001
@@ -137,7 +135,7 @@ def train(
 
         ui = -1
         rloss = defaultdict(float)  # running loss
-        metrics = torch.zeros(3, num_classes)
+        metrics = torch.zeros(3, data.classes)
         optimizer.zero_grad()
         for i, (imgs, targets) in enumerate(dataloader):
             if sum([len(x) for x in targets]) < 1:  # if no targets continue
