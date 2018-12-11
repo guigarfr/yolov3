@@ -63,6 +63,7 @@ def test(
     print('%11s' * 5 % ('Image', 'Total', 'P', 'R', 'mAP'))
     outputs, mAPs, mR, mP, TP, confidence, pred_class, target_class = [], [], [], [], [], [], [], []
     AP_accum, AP_accum_count = np.zeros(data.classes), np.zeros(data.classes)
+    mean_mAP, mean_R, mean_P = (None,)*3
     for i, sample in enumerate(data_loader):
 
         imgs = sample['image']
@@ -131,7 +132,7 @@ def test(
             mean_P = np.mean(mP)
 
             # Print image mAP and running mean mAP
-            print(('%11s%11s' + '%11.3g' * 3) % (len(mAPs), dataloader.nF, mean_P, mean_R, mean_mAP))
+            print(('%11s%11s' + '%11.3g' * 3) % (len(mAPs), len(dataset), mean_P, mean_R, mean_mAP))
 
     # Print mAP per class
     print('%11s' * 5 % ('Image', 'Total', 'P', 'R', 'mAP') + '\n\nmAP Per Class:')
