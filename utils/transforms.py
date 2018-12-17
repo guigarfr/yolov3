@@ -5,19 +5,23 @@ import torch
 from torchvision.transforms import functional as transform_f
 from torchvision.transforms import transforms as transform_o
 
+from PIL.Image import Image
+
 
 class AnnotationTransform(object):
 
     def __call__(self, sample):
-        image, annotations = sample['image'], sample['objects']
+        image, annotations = sample.sample, sample.annotations
         t_image, t_annotations = self.transform(image, annotations)
-        return dict(
-            image=t_image,
-            objects=t_annotations,
-        )
+        sample.sample = t_image
+        sample.annotations = t_annotations
+        return sample
 
     def transform(self, image, annotations):
         raise NotImplementedError
+
+    def __str__(self):
+        return self.__class__.__name__
 
 
 class ToRGB(AnnotationTransform):
@@ -115,6 +119,8 @@ class ToPILImage(AnnotationTransform):
         self.mode = mode
 
     def transform(self, image, annotations):
+        if isinstance(image, Image):
+            return image, annotations
         image = transform_f.to_pil_image(image, self.mode)
         return image, annotations
 
@@ -126,5 +132,9 @@ class ToNumpy(AnnotationTransform):
         if isinstance(image, np.ndarray):
             np_image = image
         else:
-            np_image = np.array(image)
+            np_image = np.asarray(image, dtype=np.uint8)
+            # Convert RGB to BGR (open-cv format)
+            np_image = np_image[:, :, ::-1].copy()
+        if len(np_image.shape) < 3:
+            raise Exception("Expected higher shape")
         return np_image, annotations

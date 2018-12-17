@@ -173,7 +173,7 @@ def train(
             loss.backward()
 
             # accumulate gradient for x batches before optimizing
-            if ((i + 1) % accumulated_batches == 0) or (i == len(dataloader) - 1):
+            if ((i + 1) % accumulated_batches == 0) or (i == len(data_loader) - 1):
                 optimizer.step()
                 optimizer.zero_grad()
 
@@ -199,7 +199,7 @@ def train(
                     mean_recall = recall[k].mean()
 
             s = ('%8s%12s' + '%10.3g' * 14) % (
-                '%g/%g' % (epoch, epochs - 1), '%g/%g' % (i, len(dataloader) - 1), rloss['x'],
+                '%g/%g' % (epoch, epochs - 1), '%g/%g' % (i, len(data_loader) - 1), rloss['x'],
                 rloss['y'], rloss['w'], rloss['h'], rloss['conf'], rloss['cls'],
                 rloss['loss'], mean_precision, mean_recall, model.losses['nT'], model.losses['TP'],
                 model.losses['FP'], model.losses['FN'], time.time() - t1)

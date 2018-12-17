@@ -16,6 +16,24 @@ from PIL import Image
 from torch.utils.data import dataset as ds
 
 
+class AnnotatedSample(object):
+    def __init__(self, sample, annotations, **kwargs):
+        self.sample = sample
+        self.annotations = annotations
+
+        self.sample_path = kwargs.get('sample_path')
+        self.annotation_path = kwargs.get('annotation_path')
+
+        self.sample_filename = os.path.basename(self.sample_path)
+        self.annotation_filename = os.path.basename(self.annotation_path)
+
+    def __str__(self):
+        return "AnnotatedSample({}, {})".format(
+            self.sample_filename,
+            self.sample_path
+        )
+
+
 class AnnotatedDataset(ds.Dataset):
     """
     Dataset for images with annotations
@@ -49,9 +67,11 @@ class AnnotatedDataset(ds.Dataset):
         except FileNotFoundError:
             annotations = []
 
-        sample = dict(
-            image=im,
-            objects=annotations,
+        sample = AnnotatedSample(
+            im,
+            annotations,
+            sample_path=image_f,
+            annotation_path=annot_f,
         )
 
         if self.transform:

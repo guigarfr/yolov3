@@ -3,9 +3,9 @@ from torch.utils.data import dataloader
 
 
 def collate_fn(batch):
-    images = dataloader.default_collate([d['image'] for d in batch])
+    images = dataloader.default_collate([d.sample for d in batch])
     annotations = [
-        dataloader.default_collate(np.array(d['objects'], dtype=np.float32))
+        dataloader.default_collate(np.array(d.annotations, dtype=np.float32))
         for d in batch
     ]
     return dict(
